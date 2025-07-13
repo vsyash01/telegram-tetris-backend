@@ -16,6 +16,7 @@ HIGHSCORES_BLOB_KEY = "highscores.json"
 # Check if token is available
 if not BLOB_READ_WRITE_TOKEN:
     print("Error: BLOB_READ_WRITE_TOKEN is not set")
+    raise EnvironmentError("BLOB_READ_WRITE_TOKEN is not set")
 
 # Helper function to interact with Vercel Blob Store
 def blob_request(method, path, data=None):
@@ -27,7 +28,7 @@ def blob_request(method, path, data=None):
     url = f"{BLOB_STORE_URL}/{path}?overwrite=true"
     print(f"Blob request: {method} {url}, headers={headers}, data={data}")
     try:
-        response = requests.request(method, url, headers=headers, data=json.dumps(data) if data else None)
+        response = requests.request(method, url, headers=headers, data=json.dumps(data) if data else None, timeout=10)
         print(f"Blob response: status={response.status_code}, body={response.text}")
         response.raise_for_status()
         return response
