@@ -8,32 +8,36 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Vercel Blob Store configuration
-BLOB_STORE_URL = "https://api.vercel.com/v1/blob"
+BLOB_STORE_URL = "https://blob.vercel-storage.com"  # Correct Blob Store API URL
 BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN")
-if not BLOB_READ_WRITE_TOKEN:
-    print("Error: BLOB_READ_WRITE_TOKEN is not set")
 STATES_BLOB_KEY = "states.json"
 HIGHSCORES_BLOB_KEY = "highscores.json"
+
+# Check if token is available
+if not BLOB_READ_WRITE_TOKEN:
+    print("Error: BLOB_READ_WRITE_TOKEN is not set")
 
 # Helper function to interact with Vercel Blob Store
 def blob_request(method, path, data=None):
     headers = {
         "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}",
-        "Content-Type": "application/json" if data else None
+        "Content-Type": "application/json" if data else "application/octet-stream"
     }
     url = f"{BLOB_STORE_URL}/{path}"
+    print(f"Blob request: {method} {url}, headers={headers}, data={data}")
     try:
-        response = requests.request(method, url, headers=headers, json=data)
+        response = requests.request(method, url, headers=headers, data=json.dumps(data) if data else None)
+        print(f"Blob response: status={response.status_code}, body={response.text}")
         response.raise_for_status()
         return response
     except requests.RequestException as e:
-        print(f"Blob request failed: {e}")
+        print(f"Blob request failed: {e}, response={e.response.text if e.response else 'No response'}")
         raise
 
 # Load progress store from Blob Store
 def load_progress_store():
     try:
-        response = blob_request("GET", f"objects/{STATES_BLOB_KEY}")
+        response = blob_request("GET", f"{STATES_BLOB_KEY}")
         data = response.json()
         print(f"Loaded progress store: {data}")
         return data.get("data", {"states": {}, "highscores": []})
@@ -47,7 +51,7 @@ def load_progress_store():
 # Save progress store to Blob Store
 def save_progress_store(store):
     try:
-        blob_request("PUT", f"objects/{STATES_BLOB_KEY}", data=store)
+        blob_request("PUT", f"{STATES_BLOB_KEY}", data=store)
         print(f"Saved progress store: {store}")
     except requests.RequestException as e:
         print(f"Error saving progress store: {e}")
@@ -56,7 +60,7 @@ def save_progress_store(store):
 # Load highscores from Blob Store
 def load_highscores_store():
     try:
-        response = blob_request("GET", f"objects/{HIGHSCORES_BLOB_KEY}")
+        response = blob_request("GET", f"{HIGHSCORES_BLOB_KEY}")
         data = response.json()
         print(f"Loaded highscores: {data}")
         return data.get("data", [])
@@ -70,7 +74,7 @@ def load_highscores_store():
 # Save highscores to Blob Store
 def save_highscores_store(highscores):
     try:
-        blob_request("PUT", f"objects/{HIGHSCORES_BLOB_KEY}", data={"highscores": highscores})
+        blob_request("PUT", f"{HIGHSCORES_BLOB_KEY}", data={"highscores": highscores})
         print(f"Saved highscores: {highscores}")
     except requests.RequestException as e:
         print(f"Error saving highscores: {e}")
@@ -128,9 +132,7 @@ def save_score():
         if not uid or not name or score is None:
             print("Save score failed: Missing uid, name, or score")
             return jsonify({"status": "error", "message": "Missing uid, name, or score"}), 400
-        # Update highscores
         highscores_store.append({"uid": uid, "name": name, "score": score})
-        # Sort by score (descending) and keep top 5
         highscores_store.sort(key=lambda x: x["score"], reverse=True)
         highscores_store[:] = highscores_store[:5]
         save_highscores_store(highscores_store)
