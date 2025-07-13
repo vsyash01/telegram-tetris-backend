@@ -24,6 +24,8 @@ def blob_request(method, path, data=None):
         "Content-Type": "application/json" if data else "application/octet-stream"
     }
     url = f"{BLOB_STORE_URL}/{path}"
+    if method == "PUT":
+        url += "?overwrite=true"  # Ensure blob is overwritten
     print(f"Blob request: {method} {url}, headers={headers}, data={data}")
     try:
         response = requests.request(method, url, headers=headers, data=json.dumps(data) if data else None)
