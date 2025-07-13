@@ -10,6 +10,8 @@ CORS(app)  # Enable CORS for all routes
 # Vercel Blob Store configuration
 BLOB_STORE_URL = "https://api.vercel.com/v1/blob"
 BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN")
+if not BLOB_READ_WRITE_TOKEN:
+    print("Error: BLOB_READ_WRITE_TOKEN is not set")
 STATES_BLOB_KEY = "states.json"
 HIGHSCORES_BLOB_KEY = "highscores.json"
 
