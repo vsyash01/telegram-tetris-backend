@@ -5,7 +5,6 @@ import json
 import os
 
 app = Flask(__name__)
-# Explicitly allow the frontend origin
 CORS(app, resources={r"/api/*": {"origins": "https://telegram-tetris-chi.vercel.app"}})
 
 # Vercel Blob Store configuration
@@ -119,6 +118,10 @@ def load_progress():
             return jsonify({"state": None}), 400
         state = progress_store["states"].get(uid)
         print(f"Returning state for uid={uid}: {state}")
+        # Clear the player's state after loading to ensure only the latest state is kept
+        if state:
+            del progress_store["states"][uid]
+            save_progress_store(progress_store)
         return jsonify({"state": state})
     except Exception as e:
         print(f"Load failed: {e}")
@@ -141,6 +144,10 @@ def save_score():
         highscores_store.sort(key=lambda x: x["score"], reverse=True)
         highscores_store[:] = highscores_store[:5]
         save_highscores_store(highscores_store)
+        # Clear the player's state after saving score to prevent reloading game-over state
+        if uid in progress_store["states"]:
+            del progress_store["states"][uid]
+            save_progress_store(progress_store)
         return jsonify({"status": "ok"})
     except Exception as e:
         print(f"Save score failed: {e}")
