@@ -1,84 +1,76 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
 import json
 import os
+from vercel_blob import put, get, delete  # Vercel Blob Store Client SDK
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "https://telegram-tetris-chi.vercel.app"}})
 
 # Vercel Blob Store configuration
-BLOB_STORE_URL = "https://blob.vercel-storage.com"
-BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN")
 STATES_BLOB_KEY = "states.json"
 HIGHSCORES_BLOB_KEY = "highscores.json"
+BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN")
 
 # Check if token is available
 if not BLOB_READ_WRITE_TOKEN:
     print("Error: BLOB_READ_WRITE_TOKEN is not set")
 
-# Helper function to interact with Vercel Blob Store
-def blob_request(method, path, data=None):
-    headers = {
-        "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}",
-        "Content-Type": "application/json" if data else "application/octet-stream"
-    }
-    url = f"{BLOB_STORE_URL}/{path}"
-    if method == "PUT":
-        url += "?overwrite=true"  # Ensure blob is overwritten
-    print(f"Blob request: {method} {url}, headers={headers}, data={data}")
-    try:
-        response = requests.request(method, url, headers=headers, data=json.dumps(data) if data else None)
-        print(f"Blob response: status={response.status_code}, body={response.text}")
-        response.raise_for_status()
-        return response
-    except requests.RequestException as e:
-        print(f"Blob request failed: {e}, response={e.response.text if e.response else 'No response'}")
-        raise
-
 # Load progress store from Blob Store
 def load_progress_store():
     try:
-        response = blob_request("GET", f"{STATES_BLOB_KEY}")
-        data = response.json()
-        print(f"Loaded progress store: {data}")
-        return data.get("data", {"states": {}, "highscores": []})
-    except requests.RequestException as e:
-        if e.response and e.response.status_code == 404:
+        print(f"Attempting to load progress store from {STATES_BLOB_KEY}")
+        blob = get(STATES_BLOB_KEY)
+        if blob:
+            data = json.loads(blob)
+            print(f"Loaded progress store: {data}")
+            return data.get("data", {"states": {}, "highscores": []})
+        else:
             print("No progress store found, initializing empty store")
             return {"states": {}, "highscores": []}
+    except Exception as e:
         print(f"Error loading progress store: {e}")
+        if "404" in str(e):
+            print("No progress store found, initializing empty store")
+            return {"states": {}, "highscores": []}
         raise
 
 # Save progress store to Blob Store
 def save_progress_store(store):
     try:
-        blob_request("PUT", f"{STATES_BLOB_KEY}", data=store)
-        print(f"Saved progress store: {store}")
-    except requests.RequestException as e:
+        print(f"Saving progress store to {STATES_BLOB_KEY}: {store}")
+        put(STATES_BLOB_KEY, json.dumps(store), {"access": "public", "add_random_suffix": False})
+        print(f"Saved progress store to {STATES_BLOB_KEY}")
+    except Exception as e:
         print(f"Error saving progress store: {e}")
         raise
 
 # Load highscores from Blob Store
 def load_highscores_store():
     try:
-        response = blob_request("GET", f"{HIGHSCORES_BLOB_KEY}")
-        data = response.json()
-        print(f"Loaded highscores: {data}")
-        return data.get("data", [])
-    except requests.RequestException as e:
-        if e.response and e.response.status_code == 404:
+        print(f"Attempting to load highscores from {HIGHSCORES_BLOB_KEY}")
+        blob = get(HIGHSCORES_BLOB_KEY)
+        if blob:
+            data = json.loads(blob)
+            print(f"Loaded highscores: {data}")
+            return data.get("data", [])
+        else:
             print("No highscores found, initializing empty list")
             return []
+    except Exception as e:
         print(f"Error loading highscores: {e}")
+        if "404" in str(e):
+            print("No highscores found, initializing empty list")
+            return []
         raise
 
 # Save highscores to Blob Store
 def save_highscores_store(highscores):
     try:
-        blob_request("PUT", f"{HIGHSCORES_BLOB_KEY}", data={"highscores": highscores})
-        print(f"Saved highscores: {highscores}")
-    except requests.RequestException as e:
+        print(f"Saving highscores to {HIGHSCORES_BLOB_KEY}: {highscores}")
+        put(HIGHSCORES_BLOB_KEY, json.dumps({"highscores": highscores}), {"access": "public", "add_random_suffix": False})
+        print(f"Saved highscores to {HIGHSCORES_BLOB_KEY}")
+    except Exception as e:
         print(f"Error saving highscores: {e}")
         raise
 
