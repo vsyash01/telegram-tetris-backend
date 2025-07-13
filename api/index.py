@@ -5,10 +5,11 @@ import json
 import os
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Explicitly allow the frontend origin
+CORS(app, resources={r"/api/*": {"origins": "https://telegram-tetris-chi.vercel.app"}})
 
 # Vercel Blob Store configuration
-BLOB_STORE_URL = "https://blob.vercel-storage.com"  # Correct Blob Store API URL
+BLOB_STORE_URL = "https://blob.vercel-storage.com"
 BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN")
 STATES_BLOB_KEY = "states.json"
 HIGHSCORES_BLOB_KEY = "highscores.json"
@@ -89,8 +90,10 @@ except Exception as e:
     progress_store = {"states": {}}
     highscores_store = []
 
-@app.route('/save', methods=['POST'])
+@app.route('/api/save', methods=['POST', 'OPTIONS'])
 def save_progress():
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200  # Handle CORS preflight
     try:
         data = request.json
         uid = data.get('uid')
@@ -106,7 +109,7 @@ def save_progress():
         print(f"Save failed: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/load', methods=['GET'])
+@app.route('/api/load', methods=['GET'])
 def load_progress():
     try:
         uid = request.args.get('uid')
@@ -121,8 +124,10 @@ def load_progress():
         print(f"Load failed: {e}")
         return jsonify({"state": None, "message": str(e)}), 500
 
-@app.route('/save_score', methods=['POST'])
+@app.route('/api/save_score', methods=['POST', 'OPTIONS'])
 def save_score():
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200  # Handle CORS preflight
     try:
         data = request.json
         uid = data.get('uid')
@@ -141,7 +146,7 @@ def save_score():
         print(f"Save score failed: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/highscores', methods=['GET'])
+@app.route('/api/highscores', methods=['GET'])
 def get_highscores():
     try:
         print(f"Returning highscores: {highscores_store}")
