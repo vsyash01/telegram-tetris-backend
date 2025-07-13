@@ -1,35 +1,30 @@
 # api/index.py
 from flask import Flask, request, jsonify
-import json
+from vercel_kv import VercelKV
 import os
 
 app = Flask(__name__)
 
-# File to store progress (in /tmp for Vercel)
-PROGRESS_FILE = '/tmp/progress.json'
+# Initialize Vercel KV client
+kv = VercelKV()
 
-# Load progress from file
-def load_progress_store():
+# Load progress from Vercel KV
+def load_progress_store(uid):
     try:
-        if os.path.exists(PROGRESS_FILE):
-            with open(PROGRESS_FILE, 'r') as f:
-                return json.load(f)
-        return {}
+        state = kv.get(f"progress:{uid}")
+        print(f"Loaded progress for uid={uid}: {state}")
+        return state if state else {}
     except Exception as e:
-        print(f"Error loading progress store: {e}")
+        print(f"Error loading progress for uid={uid}: {e}")
         return {}
 
-# Save progress to file
-def save_progress_store(store):
+# Save progress to Vercel KV
+def save_progress_store(uid, state):
     try:
-        with open(PROGRESS_FILE, 'w') as f:
-            json.dump(store, f)
-        print("Progress store saved successfully")
+        kv.set(f"progress:{uid}", state)
+        print(f"Saved progress for uid={uid}: {state}")
     except Exception as e:
-        print(f"Error saving progress store: {e}")
-
-# Initialize progress store
-progress_store = load_progress_store()
+        print(f"Error saving progress for uid={uid}: {e}")
 
 @app.route('/save', methods=['POST'])
 def save_progress():
@@ -37,19 +32,26 @@ def save_progress():
     uid = data.get('uid')
     state = data.get('state')
     print(f"Received save request: uid={uid}, state={state}")
-    if uid and state:
-        progress_store[uid] = state
-        save_progress_store(progress_store)
+    if not uid or not state:
+        print("Save failed: Missing uid or state")
+        return jsonify({"status": "error", "message": "Missing uid or state"}), 400
+    try:
+        save_progress_store(uid, state)
         return jsonify({"status": "ok"})
-    print("Save failed: Missing uid or state")
-    return jsonify({"status": "error", "message": "Missing uid or state"}), 400
+    except Exception as e:
+        print(f"Save failed for uid={uid}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/load', methods=['GET'])
 def load_progress():
     uid = request.args.get('uid')
     print(f"Received load request: uid={uid}")
-    if uid in progress_store:
-        print(f"Returning state for uid={uid}: {progress_store[uid]}")
-        return jsonify({"state": progress_store[uid]})
+    if not uid:
+        print("Load failed: Missing uid")
+        return jsonify({"state": None}), 400
+    state = load_progress_store(uid)
+    if state:
+        print(f"Returning state for uid={uid}: {state}")
+        return jsonify({"state": state})
     print(f"No state found for uid={uid}")
     return jsonify({"state": None})
