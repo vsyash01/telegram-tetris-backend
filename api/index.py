@@ -16,7 +16,6 @@ HIGHSCORES_BLOB_KEY = "highscores.json"
 # Check if token is available
 if not BLOB_READ_WRITE_TOKEN:
     print("Error: BLOB_READ_WRITE_TOKEN is not set")
-    raise EnvironmentError("BLOB_READ_WRITE_TOKEN is not set")
 
 # Helper function to interact with Vercel Blob Store
 def blob_request(method, path, data=None):
@@ -28,7 +27,7 @@ def blob_request(method, path, data=None):
     url = f"{BLOB_STORE_URL}/{path}?overwrite=true"
     print(f"Blob request: {method} {url}, headers={headers}, data={data}")
     try:
-        response = requests.request(method, url, headers=headers, data=json.dumps(data) if data else None, timeout=10)
+        response = requests.request(method, url, headers=headers, data=json.dumps(data) if data else None)
         print(f"Blob response: status={response.status_code}, body={response.text}")
         response.raise_for_status()
         return response
@@ -142,7 +141,7 @@ def save_score():
         if not uid or not name or score is None:
             print("Save score failed: Missing uid, name, or score")
             return jsonify({"status": "error", "message": "Missing uid, name, or score"}), 400
-        highscores_store.append({"uid": uid, "name": name, "score": score, "status": "завершена"})
+        highscores_store.append({"uid": uid, "name": name, "score": score})
         highscores_store.sort(key=lambda x: x["score"], reverse=True)
         highscores_store[:] = highscores_store[:5]
         save_highscores_store(highscores_store)
@@ -158,31 +157,8 @@ def save_score():
 @app.route('/api/highscores', methods=['GET'])
 def get_highscores():
     try:
-        # Combine completed games (from highscores_store) and in-progress games (from progress_store)
-        combined_scores = []
-        # Add completed games
-        for entry in highscores_store:
-            combined_scores.append({
-                "uid": entry["uid"],
-                "name": entry["name"],
-                "score": entry["score"],
-                "status": entry.get("status", "завершена")
-            })
-        # Add in-progress games
-        for uid, state in progress_store["states"].items():
-            if state and "score" in state:
-                name = state.get("username", "Неизвестный игрок")
-                combined_scores.append({
-                    "uid": uid,
-                    "name": name,
-                    "score": state["score"],
-                    "status": "в игре"
-                })
-        # Sort by score and take top 5
-        combined_scores.sort(key=lambda x: x["score"], reverse=True)
-        combined_scores = combined_scores[:5]
-        print(f"Returning combined highscores: {combined_scores}")
-        return jsonify({"highscores": combined_scores})
+        print(f"Returning highscores: {highscores_store}")
+        return jsonify({"highscores": highscores_store})
     except Exception as e:
         print(f"Get highscores failed: {e}")
         return jsonify({"highscores": [], "message": str(e)}), 500
