@@ -93,7 +93,7 @@ def save_progress():
         if not uid or not state:
             logger.error("Save failed: Missing uid or state")
             return jsonify({"status": "error", "message": "Missing uid or state"}), 400
-        if not isinstance(state, dict) or 'board' not in state or 'score' not in state:
+        if not isinstance(state, dict) or not all(key in state for key in ['board', 'currentPiece', 'pos', 'score', 'gameOver']):
             logger.error(f"Save failed: Invalid state format for uid={uid}")
             return jsonify({"status": "error", "message": "Invalid state format"}), 400
         # Store in memory cache
