@@ -4,6 +4,7 @@ import redis
 import json
 import os
 import logging
+import datetime
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "https://telegram-tetris-chi.vercel.app"}})
@@ -92,6 +93,9 @@ def save_progress():
         if not uid or not state:
             logger.error("Save failed: Missing uid or state")
             return jsonify({"status": "error", "message": "Missing uid or state"}), 400
+        if not isinstance(state, dict) or 'board' not in state or 'score' not in state:
+            logger.error(f"Save failed: Invalid state format for uid={uid}")
+            return jsonify({"status": "error", "message": "Invalid state format"}), 400
         # Store in memory cache
         progress_store["states"][uid] = state
         # Persist to Vercel KV
@@ -172,14 +176,16 @@ def get_highscores():
 def get_usage():
     try:
         info = redis_client.info()
+        logger.info(f"Redis usage: {info}")
         return jsonify({
             "status": "ok",
             "used_memory": info.get("used_memory_human", "N/A"),
             "total_commands_processed": info.get("total_commands_processed", 0),
-            "db_keys": redis_client.dbsize()
+            "db_keys": redis_client.dbsize(),
+            "timestamp": datetime.datetime.now().isoformat()
         })
     except redis.RedisError as e:
-        print(f"Error fetching usage: {e}")
+        logger.error(f"Error fetching usage: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
