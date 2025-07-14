@@ -172,16 +172,14 @@ def get_highscores():
 def get_usage():
     try:
         info = redis_client.info()
-        logger.info(f"Redis usage: {info}")
         return jsonify({
             "status": "ok",
             "used_memory": info.get("used_memory_human", "N/A"),
             "total_commands_processed": info.get("total_commands_processed", 0),
-            "db_keys": redis_client.dbsize(),
-            "timestamp": datetime.datetime.now().isoformat()
+            "db_keys": redis_client.dbsize()
         })
     except redis.RedisError as e:
-        logger.error(f"Error fetching usage: {e}")
+        print(f"Error fetching usage: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
