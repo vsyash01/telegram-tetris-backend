@@ -75,6 +75,20 @@ except Exception as e:
     print(f"Initialization failed: {e}")
     progress_store["highscores"] = []
 
+@app.route('/api/usage', methods=['GET'])
+def get_usage():
+    try:
+        info = redis_client.info()
+        return jsonify({
+            "status": "ok",
+            "used_memory": info.get("used_memory_human", "N/A"),
+            "total_commands_processed": info.get("total_commands_processed", 0),
+            "db_keys": redis_client.dbsize()
+        })
+    except redis.RedisError as e:
+        print(f"Error fetching usage: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/save', methods=['POST', 'OPTIONS'])
 def save_progress():
     if request.method == 'OPTIONS':
