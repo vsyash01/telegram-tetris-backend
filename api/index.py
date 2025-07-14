@@ -62,7 +62,7 @@ def load_player_state(uid):
 # Helper function to save a player's state to Vercel KV
 def save_player_state(uid, state):
     try:
-        redis_client.set(f"state:{uid}", json.dumps(state))
+        redis_client.setex(f"state:{uid}", 604800, json.dumps(state))  # Expires in 7 days
         print(f"Saved state for uid={uid}: {state}")
     except redis.RedisError as e:
         print(f"Error saving state for uid={uid}: {e}")
@@ -89,9 +89,8 @@ def save_progress():
             return jsonify({"status": "error", "message": "Missing uid or state"}), 400
         # Store in memory cache
         progress_store["states"][uid] = state
-        # Persist to Vercel KV only if game is over or player exits
-        if state.get("gameOver", False):
-            save_player_state(uid, state)
+        # Always persist to Vercel KV
+        save_player_state(uid, state)
         return jsonify({"status": "ok"})
     except Exception as e:
         print(f"Save failed: {e}")
@@ -115,7 +114,7 @@ def load_progress():
         print(f"Returning state for uid={uid}: {state}")
         # Clear the player's state from KV after loading to avoid stale data
         if state:
-            try:
+.try:
                 redis_client.delete(f"state:{uid}")
                 print(f"Cleared state for uid={uid} from Vercel KV")
             except redis.RedisError as e:
