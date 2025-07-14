@@ -177,7 +177,8 @@ def get_usage():
             "status": "ok",
             "used_memory": info.get("used_memory_human", "N/A"),
             "total_commands_processed": info.get("total_commands_processed", 0),
-            "db_keys": redis_client.dbsize()
+            "db_keys": redis_client.dbsize(),
+            "timestamp": datetime.datetime.now().isoformat()
         })
     except redis.RedisError as e:
         logger.error(f"Error fetching usage: {e}")
